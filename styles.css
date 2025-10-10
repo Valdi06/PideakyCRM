@@ -1,0 +1,38 @@
+:root{
+  --col-new: #e9f1ff;      /* light blue */
+  --col-scheduling:#fdeed9;/* light peach */
+  --col-booked:#eaf2ff;    /* light blue-ish */
+  --col-assistant:#eaf2ff; /* same */
+  --col-resched:#eff5ff;   /* very light */
+  --card-radius: 16px;
+}
+
+body { background:#fafbff; }
+
+/* Board */
+.board{ gap:1rem; }
+
+.stage{
+  min-width: 280px;
+  border-radius: var(--card-radius);
+  padding: .75rem; 
+  height: 70vh;
+  display:flex; flex-direction:column;
+  background:var(--bg, #edf2ff);
+}
+.stage-header{ display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-bottom:.5rem; }
+.stage-title{ font-weight:700; font-size:1.05rem; }
+.stage-body{ background:white; border-radius: var(--card-radius); padding:1rem; flex:1; overflow:auto; border:1px solid rgba(0,0,0,.05); }
+
+.chat-card{ border: 1px solid rgba(0,0,0,.06); border-radius: 14px; background:#fff; padding:.85rem; margin-bottom:.75rem; box-shadow: 0 1px 0 rgba(0,0,0,.03); }
+.chat-title{ font-weight:700; display:flex; align-items:center; gap:.5rem; }
+.chip{ background:#eaf5ff; border-radius:999px; font-size:.8rem; padding:.15rem .5rem; font-weight:700; color:#1e6cff; }
+.kanban-search .form-control{ border-radius: 12px; }
+
+.board-controls{ position: sticky; top:0; z-index: 1030; background:#fafbff; padding:.75rem 0; }
+
+@media (max-width: 991.98px){ .board-wrapper{ overflow-x:auto; } .stage{ width: 320px; height: 68vh; } }
+
+/* Drag ghosts */
+.sortable-ghost{ opacity:.6; }
+.sortable-chosen{ transform: rotate(.5deg); }
