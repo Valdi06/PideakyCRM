@@ -6,10 +6,9 @@ const API = {
   STAGE_NUMBERS: './api/stage_numbers.php',
 };
 
-// Si no tienes selección de cuenta aún, usamos 1 como predeterminado
+// 1 como predeterminado
 const DEFAULT_ACCOUNT_ID = 1;
 
-// Elementos del DOM que ya existen en tu index.html
 const $board     = document.getElementById('board');
 const $formCol   = document.getElementById('form-col');
 const $formCard  = document.getElementById('form-card');
@@ -18,9 +17,9 @@ const $btnRefresh = document.getElementById('btn-refresh');
 // Estado de la app en memoria
 let state = {
   accountId: DEFAULT_ACCOUNT_ID,
-  pipelineId: null,     // se selecciona el primero que llegue del backend
-  stages: [],           // [{id, name, sort_order}]
-  cardsByStage: {},     // { [stageId]: [{ fromnumber, last_text, last_ts }, ...] }
+  pipelineId: null,     
+  stages: [],           
+  cardsByStage: {}, 
 };
 
 /* ----------------------------- Utils HTTP ----------------------------- */
@@ -42,7 +41,7 @@ async function apiPost(url, data) {
 
 /* ---------------------------- Render helpers -------------------------- */
 function setPipelineName(name) {
-  const el = document.getElementById('current-pipeline-name'); // opcional en tu HTML
+  const el = document.getElementById('current-pipeline-name'); 
   if (el) el.textContent = name;
 }
 
@@ -113,7 +112,7 @@ function render() {
         const toStageId  = evt.to.dataset.col;
         const toIndex    = evt.newIndex;
 
-        // Actualización optimista en el cliente
+        
         moveCardLocal(fromnumber, toStageId, toIndex);
 
         // Persistir en backend
@@ -132,7 +131,7 @@ function render() {
     });
   });
 
-  // Drag & drop de columnas (si quieres persistir, usa sort_order con /stages?action=reorder)
+  // Drag & drop de columnas
   new Sortable($board, {
     animation: 150,
     ghostClass: 'sortable-ghost',
@@ -142,7 +141,7 @@ function render() {
       try {
         await apiPost(`${API.STAGES}?action=reorder`, { order });
       } catch (e) {
-        // Si aún no agregas sort_order en tu tabla, este POST puede fallar — no es crítico
+        
         console.warn('No se persistió el orden de columnas (falta sort_order en BD).');
       }
     },
@@ -154,7 +153,7 @@ function render() {
       e.preventDefault();
       const stageId = e.currentTarget.dataset.col;
       $formCard.reset();
-      // Reutilizamos el input hidden "column_id" del modal para pasar el stage_id
+      
       $formCard.column_id.value = stageId;
       bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCard')).show();
     });
@@ -182,7 +181,10 @@ function renderCard(card) {
     ? `<div class="text-muted small mt-1">${card.last_text}</div>`
     : '';
   const phonenumber = card.fromnumber
-    ? `<div class="chat-title">${card.fromnumber}</div>`
+    ? `<span>${card.fromnumber}</span>`
+    : '';
+  const source_phone = card.source_phone
+    ? `<span>${card.source_phone}</span>`
     : '';
 
   el.innerHTML = `
@@ -191,18 +193,15 @@ function renderCard(card) {
       <span class="chip">${ts}</span>
     </div>
     ${textHtml}
-    ${phonenumber}
+    <b>${phonenumber} -> ${source_phone} </b>
   `;
 
   return el;
 }
 
-/**
- * Reacomoda una tarjeta en el estado local (optimista),
- * antes de confirmar con el backend.
- */
+
 function moveCardLocal(fromnumber, toStageId, toIndex) {
-  // Quitar la tarjeta de donde esté
+  
   let cardObj = null;
 
   for (const sid of Object.keys(state.cardsByStage)) {
@@ -221,7 +220,7 @@ function moveCardLocal(fromnumber, toStageId, toIndex) {
   const index = Math.max(0, Math.min(Number(toIndex), dest.length));
   dest.splice(index, 0, cardObj);
 
-  // Re-render para reflejar cambios
+  
   render();
 }
 
@@ -235,20 +234,17 @@ window.filterCards = function (input) {
 };
 
 /* --------------------------- Carga de datos ---------------------------- */
-/**
- * Carga pipelines del account y arma el menú (si existe #pipeline-menu).
- * Selecciona (o mantiene) el pipeline activo y actualiza el nombre visible.
- */
+
 async function loadPipelines(accountId = DEFAULT_ACCOUNT_ID) {
   const data = await apiGet(`${API.PIPELINES}?action=list&account_id=${accountId}`);
   const rows = data.rows || [];
 
-  // Seleccionar el primero si no hay pipeline actual
+  
   if (!state.pipelineId && rows[0]) {
     state.pipelineId = rows[0].id;
   }
 
-  // Poblar el dropdown si tu HTML tiene <ul id="pipeline-menu">
+  
   const menu = document.getElementById('pipeline-menu');
   if (menu) {
     menu.innerHTML =
@@ -271,27 +267,13 @@ async function loadPipelines(accountId = DEFAULT_ACCOUNT_ID) {
       });
     });
 
-    // Crear pipeline
-    // const btnNew = document.getElementById('btn-new-pipeline');
-    // if (btnNew) {
-    //   btnNew.addEventListener('click', async (e) => {
-    //     e.preventDefault();
-    //     // const name = prompt('Nombre del pipeline:');
-    //     if (!name) return;
-    //     await apiPost(`${API.PIPELINES}?action=create`, { account_id: accountId, name });
-    //     await loadPipelines(accountId); // refresca el menú
-    //   });
-    // }
   }
 
-  // Mostrar nombre del pipeline activo si existe #current-pipeline-name
   const current = rows.find((r) => String(r.id) === String(state.pipelineId));
   if (current) setPipelineName(current.name);
 }
 
-/**
- * Carga columnas (stages) y tarjetas (numbers con último mensaje) del pipeline activo
- */
+
 async function loadBoard() {
   if (!state.pipelineId) return;
 
@@ -311,6 +293,7 @@ async function loadBoard() {
       last_text: r.last_text,
       last_ts: r.last_ts,
       profile_name: r.profile_name,
+      source_phone: r.source_phone,
     });
   });
 
@@ -338,14 +321,13 @@ if ($formCol) {
 }
 
 // Crear tarjeta (assign number a un stage)
-// Nota: en tu modal reutilizo el campo "title" como el número (fromnumber)
 if ($formCard) {
   $formCard.addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = new FormData($formCard);
-    const stage_id   = f.get('column_id');         // hidden, lo colocamos al abrir el modal
+    const stage_id   = f.get('column_id');         
     const title      = (f.get('title') || '').trim();
-    const fromnumber = title.replace(/\s+/g, '');  // normalizamos número
+    const fromnumber = title.replace(/\s+/g, '');  
 
     if (!stage_id || !fromnumber) return;
 
@@ -398,7 +380,6 @@ async function loadAccounts() {
   const data = await apiGet(`${API.ACCOUNTS}?action=list`);
   const rows = data.rows || [];
 
-  // Si tienes un select para el modal de accountnumbers, poblarlo:
   const sel = document.getElementById('select-account');
   if (sel) {
     sel.innerHTML = rows.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
@@ -445,7 +426,6 @@ if (formAccountNumber) {
 
     if (!account_id || !number) return;
 
-    // endpoint para registrar accountnumber (ver backend abajo)
     await apiPost('./api/accountnumbers.php?action=create', {
       account_id,
       number
@@ -454,6 +434,5 @@ if (formAccountNumber) {
     bootstrap.Modal.getInstance(document.getElementById('modalAccountNumber')).hide();
     formAccountNumber.reset();
 
-    // Si el account es el actual, puedes refrescar algo, pero no es necesario
   });
 }

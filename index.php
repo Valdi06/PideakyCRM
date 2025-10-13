@@ -175,7 +175,7 @@
             <label class="form-label">Nombre de la cuenta</label>
             <input type="text" class="form-control" name="name" placeholder="Ej. Pideaky" required>
           </div>
-          <div class="text-muted small">Crea una organización/tenant para agrupar pipelines y números.</div>
+          <!-- <div class="text-muted small">Crea una cuenta.</div> -->
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -202,10 +202,10 @@
           </div>
           <div class="mb-3">
             <label class="form-label">Número</label>
-            <input type="text" class="form-control" name="number" placeholder="Ej. 5215551234567" required>
+            <input type="text" class="form-control" name="number" placeholder="Ej. 5551234567" required>
           </div>
           <div class="text-muted small">
-            Solo registra el número en la cuenta. (Para ponerlo en una columna, usa el modal “Agregar número” del pipeline o arrástralo luego.)
+            
           </div>
         </div>
         <div class="modal-footer">
@@ -215,8 +215,6 @@
       </form>
     </div>
   </div>
-
-
 
   <!-- JS: Bootstrap Bundle + SortableJS + App -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
