@@ -15,7 +15,7 @@ try {
       echo json_encode(['ok'=>true, 'rows'=>$rows]);
       break;
 
-    case 'save':
+    case 'create':
       $input = json_decode(file_get_contents('php://input'), true) ?? [];
       $name  = trim($input['name'] ?? '');
       if ($name === '') throw new Exception('Nombre requerido');
