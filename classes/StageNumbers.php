@@ -172,7 +172,23 @@ public function listByPipeline(int $pipelineId): array {
           CASE WHEN ph.message_type='file' THEN CONCAT('[Archivo] ', COALESCE(cf.filename,'')) END,
           ''
         ) AS last_text,
-        1 AS is_virtual
+        1 AS is_virtual,
+        sm.user_name,
+        sm.gsid,
+        sm.queued,
+        sm.failed,
+        sm.sent,
+        sm.delivered,
+        sm.seen,
+        sm.deleted,
+        cf.user_name AS 'file_user_name',
+        cf.gsid AS 'file_gsid',
+        cf.queued AS 'file_queued',
+        cf.failed AS 'file_failed',
+        cf.sent AS 'file_sent',
+        cf.delivered AS 'file_delivered',
+        cf.seen AS 'file_seen',
+        cf.deleted AS 'file_deleted'
       FROM phones ph
       JOIN accountnumbers an
         ON an.account_id = :acc

@@ -9,8 +9,30 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <!-- Bootstrap Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="./plugins/fontawesome-free/css/all.min.css">
   <!-- Estilos propios -->
   <link rel="stylesheet" href="./css/styles.css">
+
+  <script>
+  // --- WebSocket global ---
+  var websocket = new WebSocket("wss://chatwss.yupii.com.mx:4001/");
+  // window.websocket = new WebSocket("ws://127.0.0.1:4001/");
+  // var websocket = new WebSocket("ws://127.0.0.1:4001/");
+
+  websocket.onopen = function (event) {
+    console.log("Conectado al WebSocket");
+  };
+
+  websocket.onerror = function (event) {
+    console.log("Error en WebSocket", event);
+  };
+
+  websocket.onclose = function (event) {
+    console.log("WebSocket cerrado");
+  };
+</script>
+
 </head>
 <body>
   <!-- Navbar -->
@@ -217,6 +239,7 @@
   </div>
 
   <!-- JS: Bootstrap Bundle + SortableJS + App -->
+  <script src="./plugins/jquery/jquery.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <script src="functions.js"></script>

@@ -38,6 +38,7 @@ function render() {
   state.stages.forEach((stage, idx) => {
     const column = document.createElement('section');
     column.className = 'stage flex-grow-1';
+    column.style = "max-width: 30%";
     column.dataset.id = stage.id;
 
     const cards = state.cardsByStage[stage.id] || [];
@@ -58,22 +59,24 @@ function render() {
         </div>
       </div>
 
-      <div class="stage-body">
-        <div class="cards" data-col="${stage.id}" data-is-entrada="${isEntrada ? '1':'0'}"></div>
+      <div class="stage-body" data-col="${stage.id}" data-is-entrada="${isEntrada ? '1':'0'}">
       </div>
 
     `;
 
     $board.appendChild(column);
 
-    const list = column.querySelector('.cards');
+    const list = column.querySelector('.stage-body');
     cards.forEach(card => list.appendChild(renderCard(card)));
 
     new Sortable(list, {
       group: 'cards',
       animation: 150,
+      draggable: '.chat-card',
       ghostClass: 'sortable-ghost',
       chosenClass: 'sortable-chosen',
+      swapThreshold: 0.65,
+      fallbackTolerance: 5, 
       onEnd: async (evt) => {
         const toStageId = evt.to.dataset.col;
         const fromStageId = evt.from.dataset.col;
@@ -164,16 +167,20 @@ function renderCard(card) {
   const ts = card.last_ts ? new Date(card.last_ts).toLocaleString() : '';
   let last = card.last_text || '';
   let source_phone = card.source_phone || '';
+  let sectionuser = (card.username) ? `${card.username}: ` : "";
   if (card.message_type === 'file' && last && !last.startsWith('[Archivo]')) last = `[Archivo] ${last}`;
+
+  let smallMSG = (last.length > 30) ? last.substring(0, 30) + "..." : last;
 
   el.innerHTML = `
     <div class="d-flex justify-content-between align-items-start gap-2">
       <div class="flex-grow-1">
         <div class="d-flex justify-content-between">
           <div class="chat-title">${title}</div>
-          <span class="chip">${ts}</span>
+          <span class="chip" id="st-${card.fromnumber}_source-${source_phone}">${ts}</span>
         </div>
-        ${last ? `<div class="text-muted small mt-1">${last}</div>` : ''}
+        <span class="text-muted small mt-1" id="gsid-${card.gsid}" data-slevel="${card.level}"> ${card.icon}</span>
+        <span class="text-muted small mt-1" id="s-${card.fromnumber}_source-${source_phone}"> ${sectionuser} ${smallMSG}</span>
         <b><div class="text-muted small mt-1">${card.fromnumber} -> ${source_phone}</div></b>
       </div>
       <div class="dropdown ms-2">
@@ -221,7 +228,7 @@ document.addEventListener('click', async (e) => {
 
 window.filterCards = function (input) {
   const q = (input.value || '').toLowerCase();
-  const list = input.closest('.stage').querySelector('.cards');
+  const list = input.closest('.stage').querySelector('.stage-body');
   Array.from(list.children).forEach((cardEl) => {
     cardEl.style.display = cardEl.textContent.toLowerCase().includes(q) ? '' : 'none';
   });
@@ -264,6 +271,32 @@ async function loadBoard() {
   const nums = await apiGet(`${API.STAGE_NUMBERS}?action=list&pipeline_id=${state.pipelineId}`);
   state.cardsByStage = {};
   (nums.rows || []).forEach((r) => {
+    let icon = "", level = "";
+    let typemsg = (r.message_type == "text")?"":"file_";
+    let gsid = r[typemsg + "gsid"];
+    let username = r[typemsg +"user_name"] ? r[typemsg + "user_name"] : "" ;
+
+    if (r[typemsg + "queued"] ) {
+      icon=`<i class="fas fa-clock"></i>`;
+      level = 1;
+    }
+    if (r[typemsg + "failed"] ) {
+      icon=`<i class="fas fa-times ctimes"></i>`;
+      level = 2;
+    }
+    if (r[typemsg + "sent"] ) {
+      icon=`<i class="fas fa-check"></i>`;
+      level = 3;
+    }
+    if (r[typemsg + "delivered"] ) {
+      icon=`<i class="fas fa-check mcheck"></i><i class="fas fa-check"></i>`;
+      level = 4;
+    }
+    if (r[typemsg + "seen"] ) {
+      icon=`<i class="fas fa-check checkread mcheck"></i><i class="fas fa-check checkread"></i>`;
+      level = 5;
+    }
+
     (state.cardsByStage[r.pipelinestage_id] ||= []).push({
       chat_id: r.chat_id,
       fromnumber: r.fromnumber,
@@ -274,6 +307,11 @@ async function loadBoard() {
       origin: r.origin,
       message_type: r.message_type,
       is_virtual: r.is_virtual === 1 || r.is_virtual === '1',
+      typemsg: typemsg,
+      gsid: gsid,
+      username: username,
+      icon: icon,
+      level: level,
     });
   });
 
@@ -403,3 +441,196 @@ if (formAccountNumber) {
     formAccountNumber.reset();
   });
 }
+
+/* ========== WEBSOCKET CLIENT ========== */
+
+var allowedphones = [];
+
+/**
+ * Registra los canales (números de teléfono) al WebSocket
+ */
+function initWebSocket(channels) {
+  if (typeof websocket === "undefined") {
+    console.error("websocket no está definido.");
+    return;
+  }
+
+  const register = () => {
+    const payload = {
+      type: "register_channels",
+      channels: channels
+    };
+    console.log("Registrando canales:", payload);
+    websocket.send(JSON.stringify(payload));
+  };
+
+  if (websocket.readyState === WebSocket.OPEN) {
+    register();
+  } else {
+    websocket.addEventListener("open", register);
+  }
+}
+
+/**
+ * Obtiene los números permitidos (de la cuenta actual) y se suscribe al socket
+ */
+async function start() {
+  try {
+    // Cargar los números de la cuenta actual desde el backend
+    const data = await apiGet(`./api/accountnumbers.php?action=list&account_id=${state.accountId}`);
+    const allowedphones2 = (data.rows || []).map(r => r.number);
+    allowedphones = allowedphones2;
+
+    console.log("Canales permitidos:", allowedphones2);
+    initWebSocket(allowedphones2);
+  } catch (e) {
+    console.error("Error al obtener teléfonos permitidos:", e);
+  }
+}
+
+/* Lanza el flujo principal WebSocket */
+start();
+
+/**
+ * Lógica para recibir mensajes de socket
+ */
+websocket.onmessage = function (event) {
+  try {
+    var Data = JSON.parse(event.data);
+
+    console.log(Data.type);
+
+    // Eventos tipo message
+    if(Data.type == "message"){
+
+      console.log("Mensaje recibido del canal:", Data.channel, Data);
+
+      var username = (Data.user_name != undefined)?Data.user_name:"";
+
+      var usernameSocket = (username.substr(0, 11) == "PideakyChat")?"PideakyChat":username;
+      var usernamePC = (usernameSocket == "PideakyChat")?" - " + username.substr(14):"";
+
+      var allow_phone = (usernameSocket != "PideakyChat")? Data.destination_phone : Data.chat_user ;
+
+      // if the user not have acces to the incoming message number
+      if(!allowedphones.includes(allow_phone)){
+        console.log("No permitido");
+        return false;
+      }
+
+      console.log("Permitido:" + allow_phone);
+
+      // var date = new Date();
+      const horaformat = new Date().toLocaleString();
+
+      var messagetype = getmessagetype(Data.message_type);
+      var lastmessage = (Data.message_type == "text")? Data.chat_message.replace(/<br|\/|>|\n/g, '') : messagetype;
+      var smallMSG = (lastmessage.length > 30) ? lastmessage.substring(0, 30) + "..." : lastmessage;
+
+      let element_id = (usernameSocket != "PideakyChat")?"user-"+Data.chat_user+"_source-"+Data.destination_phone:"user-"+Data.destination_phone+"_source-"+Data.chat_user;
+      let lasttxt_smallid = (usernameSocket != "PideakyChat")?"s-"+Data.chat_user+"_source-"+Data.destination_phone:"s-"+Data.destination_phone+"_source-"+Data.chat_user;
+      let lasthour_smallid = (usernameSocket != "PideakyChat")?"st-"+Data.chat_user+"_source-"+Data.destination_phone:"st-"+Data.destination_phone+"_source-"+Data.chat_user;
+
+      let context_id = Data.context.context_id;
+      let contextgs_id = Data.context.contextgs_id;
+
+      let gsid = Data.gsid
+
+      // Solo refrescar si pertenece a un canal permitido
+      // if (allowedphones.includes(String(Data.channel))) {
+      //   console.log("🔁 Refrescando tablero por mensaje nuevo");
+      //   loadBoard(); // o refreshBoardDebounced() evitar spam
+      // }
+
+      
+      if( (Data.chat_message != null && Data.chat_message != "") && (Data.message_type == "text" || Data.urlfile != "" )){
+        
+        $("#"+lasttxt_smallid).html(smallMSG); 
+        $("#"+lasthour_smallid).html(horaformat);
+
+        // console.log(lasttxt_smallid);
+        // console.log(lasthour_smallid);
+        // console.log(lastmessage);
+        // console.log(horaformat);
+
+
+      }
+      else{
+        
+      }
+
+    }
+    else if(Data.type == "message-event"){
+      console.log("event");
+      var gsid = Data.gsid;
+      var icon = "", level = "";
+
+      if (Data.message_type == "enqueued" ) {
+        icon=`<i class="fas fa-clock"></i>`;
+        level = 1;
+      }
+      if (Data.message_type == "failed" ) {
+        icon=`<i class="fas fa-times ctimes"></i>`;
+        level = 2;
+      }
+      if (Data.message_type == "sent" ) {
+        icon=`<i class="fas fa-check"></i>`;
+        level = 3;
+      }
+      if (Data.message_type == "delivered" ) {
+        icon=`<i class="fas fa-check mcheck"></i><i class="fas fa-check"></i>`;
+        level = 4;
+      }
+      if (Data.message_type == "read" ) {
+        icon=`<i class="fas fa-check checkread mcheck"></i><i class="fas fa-check checkread"></i>`;
+        level = 5;
+      }
+
+      let level_list = $("#gsid-"+gsid).attr("data-slevel");
+      // let level_chat = $("#smallgsid-"+gsid).attr("data-gslevel_"+gsid);
+
+      if(gsid && level >= level_list){
+
+        $("#gsid-"+gsid).html(icon);
+        $("#gsid-"+gsid).attr("data-slevel", level);
+
+      }
+
+    }
+
+  } catch (err) {
+    console.warn("Error procesando mensaje:", err);
+  }
+};
+
+  function getmessagetype(mime_type){
+    var message_type = "";
+    switch(mime_type){
+      case 'image/jpeg':
+          message_type = "Image";
+      break;
+      case 'image/webp':
+          message_type = "Image";
+      break;
+      case 'audio/ogg; codecs=opus':
+          message_type = "Audio";
+      break;
+      case 'application/pdf':
+          message_type = "PDF";
+      break;
+      case 'video/mp4':
+          message_type = "Video";
+      break;
+      case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+          message_type = "Excel";
+      break;
+      case 'application/octet-stream':
+          message_type = "File";
+      break;
+      default:
+          message_type = "File";
+      break;
+    }
+
+    return message_type;
+  }

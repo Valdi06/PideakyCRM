@@ -36,3 +36,19 @@ body { background:#fafbff; }
 /* Drag ghosts */
 .sortable-ghost{ opacity:.6; }
 .sortable-chosen{ transform: rotate(.5deg); }
+
+.checkread{
+    color: #74b9ff;
+}
+
+.mcheck{
+    margin-right: -6px;
+}
+
+.ctimes{
+    color: #d63031;
+}
+
+.textdeleted{
+    text-decoration: line-through;
+}
